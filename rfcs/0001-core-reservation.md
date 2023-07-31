@@ -6,14 +6,106 @@
 ## Summary
 [summary]: #summary
 
-One paragraph explanation of the feature.
+A core reservation service that solves the problem of reservaing a resource for a period of time. We leverage postgres EXCLUDE constrains to ensure that only one reservation can be made for a given resource at a given time.
 
 ## Motivation
 [motivation]: #motivation
 
-Why are we doing this? What use cases does it support? What is the expected outcome?
+We need a common solution for various reservation requirements: 1): calendar booking; 2): hotel/room_booking; 3): meeting room booking; 4): parking lot booking; 5): etc. Repeatedly building features for these requirements is a waste of time and resources. We should have a common solution that can be used by all teams.
 
 ## Guide-level explanation
+
+### Service interface
+
+We would use gRPC as a service interface. Below is the proto definition:
+
+```proto
+enum ReservationType {
+    UNKNOWN = 0;
+    PENDING = 1;
+    CONFIRMED = 2;
+    BLOCKED = 3;
+}
+
+message Reservation {
+    string id = 1;
+    string user_id = 2;
+    ReservationStatus Status = 3;
+
+    // resource reservation window
+    string resource_id = 4;
+    google.protobuf.Timestamp start = 5;
+    google.protobuf.Timestamp end = 6;
+
+    // extra note
+    string note = 7;
+}
+
+message ReserveRequest {
+    Reservation reservation = 1;
+}
+
+message ReserveResponse {
+    Reservation reservation = 1;
+}
+
+message UpdateRequest {
+    string note = 2;
+}
+
+message UpdateResponse {
+    Reservation reservation = 1;
+}
+
+message ConfirmRequest {
+    string id = 1;
+}
+
+message ConfirmResponse {
+    Reservation reservation = 1;
+}
+
+message CancelRequest {
+    string id = 1;
+}
+
+message CancelResponse {
+    Reservation reservation = 1;
+}
+
+message GetRequest {
+    string id = 1;
+}
+
+message GetResponse {
+    Reservation reservation = 1;
+}
+
+message QueryRequest {
+    string resource_id = 1;
+    string user_id = 2;
+    // use status to filter result. if UNKNOWN, then return all reservations
+    ReservationStatus status = 3;
+    google.protobuf.Timestamp start = 4;
+    google.protobuf.Timestamp end = 5;
+}
+
+message QueryResponse {
+    repeated Reservation reservations = 1;
+}
+
+service ReservationService {
+    rpc reserve(ReserveRequest) returns (ReserveResponse);
+    rpc confirm(ConfirmRequest) returns (ConfirmResponse);
+    rpc update(UpdateRequest) returns (UpdateResponse);
+    rpc cancel(CancelRequest) returns (CancelResponse);
+    rpc get(GetRequest) returns (GetResponse);
+    rpc query(QueryRequest) returns (stream Reservation);
+}
+
+// 在Protobuf中,stream可以用来定义流式RPC服务
+```
+
 [guide-level-explanation]: #guide-level-explanation
 
 Explain the proposal as if it was already included in the language and you were teaching it to another Rust programmer. That generally means:

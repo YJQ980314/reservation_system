@@ -19,7 +19,7 @@ We need a common solution for various reservation requirements: 1): calendar boo
 
 We would use gRPC as a service interface. Below is the proto definition:
 
-```proto
+```proto3
 enum ReservationType {
     UNKNOWN = 0;
     PENDING = 1;
@@ -104,6 +104,29 @@ service ReservationService {
 }
 
 // 在Protobuf中,stream可以用来定义流式RPC服务
+```
+
+### Database schema
+
+We use postgres as the database. Below is the database schema:
+
+```sql
+CREATE SCHEMA rsvp
+CREATE TYPE rsvp.reservation_status AS ENUM (
+    'unkowne',
+    'pending',
+    'confirmed',
+    'blocked'
+);
+CREATE TABLE rsvp.reservations (
+    id uuid NOT NULL DAFEAULT uuid_generate_v4(),
+    user_id varchar(64) NOT NULL,
+    status rsvp.reservation_status NOT NULL DEDFAULT 'pending',
+    resource_id varchar(64) NOT NULL,
+    start timestamptz NOT NULL,
+    end timestamptz NOT NULL,
+    note text
+);
 ```
 
 [guide-level-explanation]: #guide-level-explanation

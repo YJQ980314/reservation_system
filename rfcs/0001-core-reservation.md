@@ -27,6 +27,13 @@ enum ReservationType {
     BLOCKED = 3;
 }
 
+enum ReservationUpdateType {
+    UNKNOWN = 0;
+    CREATE = 1;
+    UPDATE = 2;
+    DELETE = 3;
+}
+
 message Reservation {
     string id = 1;
     string user_id = 2;
@@ -94,6 +101,12 @@ message QueryResponse {
     repeated Reservation reservations = 1;
 }
 
+message ListenRequest {}
+message ListenResponse {
+    int8 op = 1;
+    Reservation reservation = 2;
+}
+
 service ReservationService {
     rpc reserve(ReserveRequest) returns (ReserveResponse);
     rpc confirm(ConfirmRequest) returns (ConfirmResponse);
@@ -101,6 +114,8 @@ service ReservationService {
     rpc cancel(CancelRequest) returns (CancelResponse);
     rpc get(GetRequest) returns (GetResponse);
     rpc query(QueryRequest) returns (stream Reservation);
+    // another system could monitor newly added/confirmed/cancelled reservations
+    rpc listen(ListenRequest) returns (stream Reservation);
 }
 
 // 在Protobuf中,stream可以用来定义流式RPC服务
@@ -112,22 +127,72 @@ We use postgres as the database. Below is the database schema:
 
 ```sql
 CREATE SCHEMA rsvp
-CREATE TYPE rsvp.reservation_status AS ENUM (
-    'unkowne',
-    'pending',
-    'confirmed',
-    'blocked'
-);
+CREATE TYPE rsvp.reservation_status AS ENUM ('unkowne', 'pending', 'confirmed', 'blocked');
+CREATE TYPE rsvp.reservation_update_type AS ENUM ('unknown', 'create', 'update', 'delete');
 CREATE TABLE rsvp.reservations (
-    id uuid NOT NULL DAFEAULT uuid_generate_v4(),
-    user_id varchar(64) NOT NULL,
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(64) NOT NULL,
     status rsvp.reservation_status NOT NULL DEDFAULT 'pending',
-    resource_id varchar(64) NOT NULL,
-    start timestamptz NOT NULL,
-    end timestamptz NOT NULL,
+    resource_id VARCHAR(64) NOT NULL,
+    timespan TSTZRANGE NOT NULL,
     note text
+
+    CONSTRAINT reservation_pkey PRIMARY KEY (id),
+    CONSTRAINT reservations_conflict EXCLUDE USING gist (resource_id WITH =, timespan WITH &&)
 );
+
+CREATE INDEX reservations_resource_id_idx ON rsvp.reservations (resource_id);
+CREATE INDEX reservations_user_id_idx ON rsvp.reservations (user_id);
+
+-- if use_id is null, find all reservations within during for the resource
+-- if resurce_id is null, find all reservations within during for the user
+-- if both user_id and resource_id are null, find all reservations within during
+-- if both set, find all reservations within during for the user and resource
+CREATE OR REPLACE FUNCTION rsvp.query(uid text, rid text, during: TSTZRANGE) RETURNS TABLE rsvp.reservations AS $$ $$ LANGUAGE plpgsql；
+
+-- reservation change queue
+CREATE TABLE revp.reservation_changes (
+    id SERIAL uuid_generate_v4(),
+    reservation_id uuid NOT NULL,
+    op rsvp.reservation_update_type NOT NULL,
+);
+
+-- trigger for add/update/delete a reservation
+CREATE OR REPLACE FUNCTION rsvp.reservations_trigger() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = "INSERT" THEN
+        -- update reservation_changes
+        INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (NEW.id, 'create');
+    ELSIF TG_OP = "UPDATE" THEN
+        -- if status changed, update reservation_changes
+        IF OLD.status != NEW.status THEN
+            INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (NEW.id, 'update');
+        END IF;
+    ELSIF TG_OP = "DELETE" THEN
+        -- update reservation_changes
+        INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (OLD.id, 'delete');
+    END IF;
+    -- notify a channel called reservation_update
+    NOTIFY reservation_update, NEW.id;
+    RETURN NULL;
+END; 
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reservations_trigger AFTER INSERT OR UPDATE OR DELETE ON rsvp.reservations FOR EACH ROW EXECUTE PROCEDURE rsvp.reservations_trigger();
 ```
+
+Here we use EXCLUDE constraint provided by postgre to ensure that on overlapping reservations cannot be made for a given resource at a given time. 
+``` sql
+CONSTRAINT reservations_conflict EXCLUDE USING gist (resource_id WITH =, timespan WITH &&)
+```
+
+![overlapping](./images/overlapping.png)
+
+We also use a trigger to notify a channel when a reservation is added/updated/deleted. to make sure even we missed certain messages from the channel when DB connection is down for some reason, we use a queue to store reservation changes. Thus when we receive a  notification, we can query the queue to get all the changes since last time we checed, and once we finished processing all the changes, we can delete them from the queue.
+
+### Core flow
+
+![core flow](images/core_flow.png)
 
 [guide-level-explanation]: #guide-level-explanation
 
@@ -186,10 +251,10 @@ Please also take into consideration that rust sometimes intentionally diverges f
 ## Unresolved questions
 [unresolved-questions]: #unresolved-questions
 
-- What parts of the design do you expect to resolve through the RFC process before this gets merged?
-- What parts of the design do you expect to resolve through the implementation of this feature before stabilization?
-- What related issues do you consider out of scope for this RFC that could be addressed in the future independently of the solution that comes out of this RFC?
-
+- how to handle repeated reservation? - is this more less a business logic which shouldn't be put into this layer?(no-goal: we consdie this as a business logic and should be handled by the caller)
+- if load is big, we may use an extract queue for recording canges.
+- we have't considered tracking/observability/deployment yet.
+- query performance might be an issue - need to revisit the index and also consider using cache.
 ## Future possibilities
 [future-possibilities]: #future-possibilities
 

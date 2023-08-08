@@ -15,23 +15,25 @@ We need a common solution for various reservation requirements: 1): calendar boo
 
 ## Guide-level explanation
 
+![basic arch](./images/arch1.jpg)
+
 ### Service interface
 
 We would use gRPC as a service interface. Below is the proto definition:
 
 ```proto3
-enum ReservationType {
-    UNKNOWN = 0;
-    PENDING = 1;
-    CONFIRMED = 2;
-    BLOCKED = 3;
+enum ReservationStatus {
+    RESERVATION_STATUS_UNKNOWN = 0;
+    RESERVATION_STATUS_PENDING = 1;
+    RESERVATION_STATUS_CONFIRMED = 2;
+    RESERVATION_STATUS_BLOCKED = 3;
 }
 
 enum ReservationUpdateType {
-    UNKNOWN = 0;
-    CREATE = 1;
-    UPDATE = 2;
-    DELETE = 3;
+    RESERVATION_UPDATE_TYPE_UNKNOWN = 0;
+    RESERVATION_UPDATE_TYPE_CREATE = 1;
+    RESERVATION_UPDATE_TYPE_UPDATE = 2;
+    RESERVATION_UPDATE_TYPE_DELETE = 3;
 }
 
 message Reservation {
@@ -145,7 +147,7 @@ CREATE INDEX reservations_resource_id_idx ON rsvp.reservations (resource_id);
 CREATE INDEX reservations_user_id_idx ON rsvp.reservations (user_id);
 
 -- if use_id is null, find all reservations within during for the resource
--- if resurce_id is null, find all reservations within during for the user
+-- if resource_id is null, find all reservations within during for the user
 -- if both user_id and resource_id are null, find all reservations within during
 -- if both set, find all reservations within during for the user and resource
 CREATE OR REPLACE FUNCTION rsvp.query(uid text, rid text, during: TSTZRANGE) RETURNS TABLE rsvp.reservations AS $$ $$ LANGUAGE plpgsql；
@@ -175,13 +177,13 @@ BEGIN
     -- notify a channel called reservation_update
     NOTIFY reservation_update, NEW.id;
     RETURN NULL;
-END; 
+END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER reservations_trigger AFTER INSERT OR UPDATE OR DELETE ON rsvp.reservations FOR EACH ROW EXECUTE PROCEDURE rsvp.reservations_trigger();
 ```
 
-Here we use EXCLUDE constraint provided by postgre to ensure that on overlapping reservations cannot be made for a given resource at a given time. 
+Here we use EXCLUDE constraint provided by postgre to ensure that on overlapping reservations cannot be made for a given resource at a given time.
 ``` sql
 CONSTRAINT reservations_conflict EXCLUDE USING gist (resource_id WITH =, timespan WITH &&)
 ```

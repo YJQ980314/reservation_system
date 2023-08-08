@@ -11,7 +11,7 @@ enum ReservationStatus {
     RESERVATION_STATUS_BLOCKED = 3;
 }
 
-//  when reservation is upadted, record the update type
+//  when reservation is updated, record the update type
 enum ReservationUpdateType {
     RESERVATION_UPDATE_TYPE_UNKNOWN = 0;
     RESERVATION_UPDATE_TYPE_CREATE = 1;
@@ -19,7 +19,7 @@ enum ReservationUpdateType {
     RESERVATION_UPDATE_TYPE_DELETE = 3;
 }
 
-// Core reservation object. COntains all the information for a reservation
+// Core reservation object. CContains all the information for a reservation
 // ListenResponse op is DELETE, only id will be populated
 message Reservation {
     // unique id for a reservation, if put into ReservationRequest, id should be empty
@@ -89,8 +89,12 @@ message GetResponse {
     Reservation reservation = 1;
 }
 
-// to query reservations, send a QueryRequest
-message QueryRequest {
+message QueryResponse {
+    repeated Reservation reservations = 1;
+}
+
+// query reservation with user id, resource id, status, start and end time
+message ReservationQuery {
     // resource id for the reservation query. if empty, then query all resources
     string resource_id = 1;
     // user id for the reservation query. if empty, then query all users
@@ -103,8 +107,9 @@ message QueryRequest {
     google.protobuf.Timestamp end = 5;
 }
 
-message QueryResponse {
-    repeated Reservation reservations = 1;
+// to query reservations, send a QueryRequest
+message QueryRequest {
+    ReservationQuery query = 1;
 }
 
 // Client can listen to reservation changes by sending a ListenRequest

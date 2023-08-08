@@ -132,12 +132,13 @@ CREATE SCHEMA rsvp
 CREATE TYPE rsvp.reservation_status AS ENUM ('unkowne', 'pending', 'confirmed', 'blocked');
 CREATE TYPE rsvp.reservation_update_type AS ENUM ('unknown', 'create', 'update', 'delete');
 CREATE TABLE rsvp.reservations (
-    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
     user_id VARCHAR(64) NOT NULL,
-    status rsvp.reservation_status NOT NULL DEDFAULT 'pending',
+    status rsvp.reservation_status NOT NULL DEFAULT 'pending',
     resource_id VARCHAR(64) NOT NULL,
     timespan TSTZRANGE NOT NULL,
-    note text
+
+    note TEXT,
 
     CONSTRAINT reservation_pkey PRIMARY KEY (id),
     CONSTRAINT reservations_conflict EXCLUDE USING gist (resource_id WITH =, timespan WITH &&)
@@ -153,10 +154,10 @@ CREATE INDEX reservations_user_id_idx ON rsvp.reservations (user_id);
 CREATE OR REPLACE FUNCTION rsvp.query(uid text, rid text, during: TSTZRANGE) RETURNS TABLE rsvp.reservations AS $$ $$ LANGUAGE plpgsql；
 
 -- reservation change queue
-CREATE TABLE revp.reservation_changes (
-    id SERIAL uuid_generate_v4(),
+CREATE TABLE rsvp.reservation_changes (
+    id SERIAL NOT NULL,,
     reservation_id uuid NOT NULL,
-    op rsvp.reservation_update_type NOT NULL,
+    op rsvp.reservation_update_type NOT NULL
 );
 
 -- trigger for add/update/delete a reservation
@@ -175,7 +176,7 @@ BEGIN
         INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (OLD.id, 'delete');
     END IF;
     -- notify a channel called reservation_update
-    NOTIFY reservation_update, NEW.id;
+    NOTIFY reservation_update;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;

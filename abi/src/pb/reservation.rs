@@ -1,4 +1,4 @@
-/// Core reservation object. COntains all the information for a reservation
+/// Core reservation object. CContains all the information for a reservation
 /// ListenResponse op is DELETE, only id will be populated
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -94,10 +94,16 @@ pub struct GetResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
-/// to query reservations, send a QueryRequest
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryRequest {
+pub struct QueryResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub reservations: ::prost::alloc::vec::Vec<Reservation>,
+}
+/// query reservation with user id, resource id, status, start and end time
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReservationQuery {
     /// resource id for the reservation query. if empty, then query all resources
     #[prost(string, tag = "1")]
     pub resource_id: ::prost::alloc::string::String,
@@ -114,11 +120,12 @@ pub struct QueryRequest {
     #[prost(message, optional, tag = "5")]
     pub end: ::core::option::Option<::prost_types::Timestamp>,
 }
+/// to query reservations, send a QueryRequest
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryResponse {
-    #[prost(message, repeated, tag = "1")]
-    pub reservations: ::prost::alloc::vec::Vec<Reservation>,
+pub struct QueryRequest {
+    #[prost(message, optional, tag = "1")]
+    pub query: ::core::option::Option<ReservationQuery>,
 }
 /// Client can listen to reservation changes by sending a ListenRequest
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -136,7 +143,9 @@ pub struct ListenResponse {
     pub reservation: ::core::option::Option<Reservation>,
 }
 /// reervation status for a given time period
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[derive(
+    sqlx::Type, Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration,
+)]
 #[repr(i32)]
 pub enum ReservationStatus {
     Unknown = 0,
@@ -168,7 +177,7 @@ impl ReservationStatus {
         }
     }
 }
-///   when reservation is upadted, record the update type
+///   when reservation is updated, record the update type
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ReservationUpdateType {

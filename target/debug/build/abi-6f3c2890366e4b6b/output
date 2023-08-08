@@ -1,0 +1,3 @@
+cargo:rerun-if-changed=protos/reservation.proto
+cargo:rerun-if-changed=protos
+cargo:rerun-if-changed=protos/reservation.proto

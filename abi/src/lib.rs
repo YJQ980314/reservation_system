@@ -1,11 +1,9 @@
+mod error;
 mod pb;
-use chrono::{DateTime, NaiveDateTime, Utc};
-pub use pb::*;
-use prost_types::Timestamp;
+mod types;
+mod utils;
 
-pub fn convert_to_utc_time(ts: Timestamp) -> DateTime<Utc> {
-    DateTime::<Utc>::from_utc(
-        NaiveDateTime::from_timestamp_opt(ts.seconds, ts.nanos as _).unwrap(),
-        Utc,
-    )
-}
+pub use error::{Error, ReservationConflictInfo, ResrvationWindow};
+pub use pb::*;
+pub use utils::*;
+// use sqlx::error::DatabaseError;

@@ -8,6 +8,10 @@ pub use pb::*;
 pub use utils::*;
 // use sqlx::error::DatabaseError;
 
+pub trait Validator {
+    fn validate(&self) -> Result<(), Error>;
+}
+
 /// datdbase equivalent of the "reservation_status" enum
 #[derive(Debug, Clone, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "reservation_status", rename_all = "lowercase")]

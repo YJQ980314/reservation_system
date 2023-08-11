@@ -1,4 +1,5 @@
 use crate::{ReservationId, ReservationManager, Rsvp};
+use abi::Validator;
 // use abi::convert_to_utc_time;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -12,7 +13,7 @@ impl Rsvp for ReservationManager {
         let status = abi::ReservationStatus::from_i32(rsvp.status)
             .unwrap_or(abi::ReservationStatus::Pending);
 
-        let timespan: PgRange<DateTime<Utc>> = rsvp.get_timespan().into();
+        let timespan: PgRange<DateTime<Utc>> = rsvp.get_timespan();
         // generate a  insert sql for the reservation
         // execute the sql
         // Postgre对类型要求严格
@@ -81,9 +82,32 @@ impl Rsvp for ReservationManager {
 
     async fn query(
         &self,
-        _query: abi::ReservationQuery,
+        query: abi::ReservationQuery,
     ) -> Result<Vec<abi::Reservation>, abi::Error> {
-        todo!()
+        let user_id = str_to_option(&query.user_id);
+        let resource_id = str_to_option(&query.resource_id);
+        let range = query.get_timespan();
+        let status = abi::ReservationStatus::from_i32(query.status)
+            .unwrap_or(abi::ReservationStatus::Pending);
+        let rsvps = sqlx::query_as("SELECT * FROM rsvp.query($1, $2, $3, $4, $5, $6, $7)")
+            .bind(user_id)
+            .bind(resource_id)
+            .bind(range)
+            .bind(status.to_string())
+            .bind(query.page)
+            .bind(query.desc)
+            .bind(query.page_size)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rsvps)
+    }
+}
+
+fn str_to_option(s: &str) -> Option<&str> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
     }
 }
 
@@ -95,7 +119,9 @@ impl ReservationManager {
 
 #[cfg(test)]
 mod tests {
-    use abi::{Reservation, ReservationConflict, ReservationConflictInfo, ResrvationWindow};
+    use abi::{Reservation, ReservationConflict, ReservationConflictInfo, ResrvationWindow, ReservationQueryBuilder};
+    // use sqlx::types::uuid::Timestamp;
+    use prost_types::Timestamp;
 
     use super::*;
 
@@ -164,14 +190,14 @@ mod tests {
     }
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
-    async fn get_reservation_should_work(){
+    async fn get_reservation_should_work() {
         let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
         let rsvp1 = manager.get(rsvp.id.clone()).await.unwrap();
         assert_eq!(rsvp, rsvp1);
     }
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
-    async fn delete_reservation_should_work(){
+    async fn delete_reservation_should_work() {
         let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
         manager.delete(rsvp.id.clone()).await.unwrap();
         let ret = manager.get(rsvp.id.clone()).await.unwrap_err();
@@ -219,5 +245,38 @@ mod tests {
             note,
         );
         (manager.reserve(rsvp).await.unwrap(), manager)
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn query_reservations_should_work() {
+        let (rsvp, manager) = make_alice_reservation(migrated_pool.clone()).await;
+        // let query = ReservationQuery::new("aliceid", "ocean-view-room-713", "2022-12-26T15::00:00-0700".parse().unwrap(), "2024-12-20T12::00:00-0700".parse().unwrap(), abi::ReservationStatus::Pending, 1, 10, false);
+        let query = ReservationQueryBuilder::default()
+            .user_id("aliceid")
+            .start("2022-01-25T15::00:00-0700".parse::<Timestamp>().unwrap())
+            .end("2024-02-28T12::00:00-0700".parse::<Timestamp>().unwrap())
+            .status(abi::ReservationStatus::Pending as i32)
+            .build()
+            .unwrap();
+        let rsvps = manager.query(query).await.unwrap();
+        assert_eq!(rsvps.len(), 1);
+        assert_eq!(rsvps[0], rsvp);
+
+        // if status is not in correct, should return empty
+        let query = ReservationQueryBuilder::default()
+            .user_id("aliceid")
+            .start("2022-01-25T15::00:00-0700".parse::<Timestamp>().unwrap())
+            .end("2024-02-28T12::00:00-0700".parse::<Timestamp>().unwrap())
+            .status(abi::ReservationStatus::Confirmed as i32)
+            .build()
+            .unwrap();
+        let rsvps = manager.query(query.clone()).await.unwrap();
+        assert_eq!(rsvps.len(), 0);
+
+        // change state to confirmed, query should get result
+        let rsvp = manager.change_status(rsvp.id).await.unwrap();
+        let rsvps = manager.query(query).await.unwrap();
+        assert_eq!(rsvps.len(), 1);
+        assert_eq!(rsvps[0], rsvp);
     }
 }

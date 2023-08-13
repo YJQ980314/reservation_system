@@ -27,7 +27,10 @@ fn main() {
     tonic_build::configure()
         .out_dir("src/pb")
         .with_sql_type(&["reservation.ReservationStatus"])
-        .with_builder(&["reservation.ReservationQuery"])
+        .with_builder(&[
+            "reservation.ReservationQuery",
+            "reservation.ReservationFilter",
+        ])
         .with_builder_into(
             "reservation.ReservationQuery",
             &[
@@ -35,6 +38,17 @@ fn main() {
                 "user_id",
                 "status",
                 "page",
+                "page_size",
+                "desc",
+            ],
+        )
+        .with_builder_into(
+            "reservation.ReservationFilter",
+            &[
+                "resource_id",
+                "user_id",
+                "status",
+                "cursor",
                 "page_size",
                 "desc",
             ],
@@ -60,27 +74,27 @@ trait BuildExt {
 
 impl BuildExt for Builder {
     fn with_sql_type(self, paths: &[&str]) -> Self {
-        paths.into_iter().fold(self, |acc, path| {
+        paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(sqlx::Type)]")
         })
     }
 
     fn with_builder(self, paths: &[&str]) -> Self {
-        paths.into_iter().fold(self, |acc, path| {
+        paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(derive_builder::Builder)]")
         })
     }
 
     fn with_builder_into(self, path: &str, fields: &[&str]) -> Self {
-        fields.into_iter().fold(self, |acc, field| {
-            acc.field_attribute(&format!("{}.{}", path, field), "#[builder(setter(into))]")
+        fields.iter().fold(self, |acc, field| {
+            acc.field_attribute(format!("{}.{}", path, field), "#[builder(setter(into))]")
         })
     }
 
     fn with_builder_option(self, path: &str, fields: &[&str]) -> Self {
-        fields.into_iter().fold(self, |acc, field| {
+        fields.iter().fold(self, |acc, field| {
             acc.field_attribute(
-                &format!("{}.{}", path, field),
+                format!("{}.{}", path, field),
                 "#[builder(setter(into, strip_option))]",
             )
         })

@@ -1,5 +1,5 @@
 mod manager;
-use abi::ReservationId;
+use abi::{ReservationId, FilterPager};
 use async_trait::async_trait;
 use sqlx::PgPool;
 
@@ -29,4 +29,9 @@ pub trait Rsvp {
         &self,
         query: abi::ReservationQuery,
     ) -> Result<Vec<abi::Reservation>, abi::Error>;
+    // query reservations order by reservation id
+    async fn filter(
+        &self,
+        filter: abi::ReservationFilter,
+    ) -> Result<(FilterPager, Vec<abi::Reservation>), abi::Error>; 
 }

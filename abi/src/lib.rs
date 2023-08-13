@@ -29,7 +29,7 @@ pub enum RsvpStatus {
 impl Validator for ReservationId {
     fn validate(&self) -> Result<(), Error> {
         if *self <= 0 {
-            return Err(Error::InvalidReservationId(*self));
+            Err(Error::InvalidReservationId(*self))
         } else {
             Ok(())
         }

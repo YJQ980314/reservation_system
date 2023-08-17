@@ -61,7 +61,7 @@ message UpdateResponse {
 
 // To change a reservation status from PENDING to CONFIRMED, send a ConfirmRequest
 message ConfirmRequest {
-    string id = 1;
+    int64 id = 1;
 }
 
 // Confirmed reservation will be returned in ConfirmResponse
@@ -71,7 +71,7 @@ message ConfirmResponse {
 
 // To cancel a reservation, send a CancelRequest
 message CancelRequest {
-    string id = 1;
+    int64 id = 1;
 }
 
 // Cancelled reservation will be returned in CancelResponse
@@ -81,7 +81,7 @@ message CancelResponse {
 
 // To get a reservation, send a GetRequest
 message GetRequest {
-    string id = 1;
+    int64 id = 1;
 }
 
 // Resrvation will be returned in GetResponse

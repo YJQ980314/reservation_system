@@ -16,7 +16,7 @@ pub enum Error {
     //     expected: String,
     //     found: String,
     // },
-    #[error("Database error")]
+    #[error("Database error: {0}")]
     DbError(sqlx::Error),
 
     #[error("Failed to read configuration file")]

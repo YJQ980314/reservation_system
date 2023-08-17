@@ -3,4 +3,5 @@ members = [
     "abi",
     "reservation",
     "service",
+    "sqlx_database_test",
 ]

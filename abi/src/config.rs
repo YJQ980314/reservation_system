@@ -39,16 +39,13 @@ impl Config {
 impl DbConfig {
     pub fn server_url(&self) -> String {
         if self.password.is_empty() {
-            return format!(
-                "postgres://{}@{}:{}",
-                self.user, self.host, self.port
-            );
+            return format!("postgres://{}@{}:{}", self.user, self.host, self.port);
         } else {
             return format!(
                 "postgres://{}:{}@{}:{}",
                 self.user, self.password, self.host, self.port
             );
-        }   
+        }
     }
 
     pub fn get_url(&self) -> String {
@@ -70,8 +67,8 @@ mod test {
                 db: DbConfig {
                     host: "localhost".to_string(),
                     port: 5432,
-                    user: "yanlien".to_string(),
-                    password: "YJQ980314".to_string(),
+                    user: "posgres".to_string(),
+                    password: "".to_string(),
                     dbname: "reservation".to_string(),
                     max_connections: 5
                 },

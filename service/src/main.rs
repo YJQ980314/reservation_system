@@ -1,5 +1,4 @@
 use std::path::Path;
-
 use abi::{Config, reservation_service_server::ReservationServiceServer};
 use anyhow::{Result, Ok};
 use reservation_service::RsvpService;
@@ -21,7 +20,6 @@ async fn main() -> Result<()> {
             _ => panic!("no config file found"),
         }
     });
-
 
     let config = Config::load(&filename)?;
     println!("{:?}", config);

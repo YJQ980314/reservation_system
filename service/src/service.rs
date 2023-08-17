@@ -85,21 +85,18 @@ impl ReservationService for RsvpService {
 #[cfg(test)]
 
 mod tests {
-    use std::{sync::Arc, thread};
+    // use std::path::Path;
 
-    use abi::{Config, Reservation};
-    use sqlx::{types::Uuid, Connection, Executor};
-    use tokio::runtime::Runtime;
     use std::ops::Deref;
-    use lazy_static::lazy_static;
     use super::*;
-
-    lazy_static! {
-        static ref TEST_RT: Runtime = Runtime::new().unwrap();
-    }
+    use abi::{Config, Reservation};
+    // use sqlx::migrate::Migrator;
+    use sqlx_db_test::TestDb;
 
     struct TestConfig {
-        config: Arc<Config>,
+        pub config: Config,
+        #[allow(dead_code)]
+        tdb: TestDb,
     }
 
     impl Deref for TestConfig {
@@ -112,69 +109,31 @@ mod tests {
 
     impl TestConfig {
         pub fn new() -> Self {
-            let mut config = Config::load("../service/fixtures/config.yml").unwrap();
-            let uuid = Uuid::new_v4();
-            let dbname = format!("test_{}", uuid);
-            config.db.dbname = dbname.clone();
+            let mut config = Config::load("fixtures/config.yml").unwrap();
+            
+            let tdb = TestDb::new(
+                &config.db.host,
+                config.db.port,
+                &config.db.user,
+                &config.db.password,
+                "../migrations",
+            );
 
-            let server_url = config.db.server_url();
-            let url = config.db.get_url();
-
-            // create database dbname
-            thread::spawn(move || {
-                TEST_RT.block_on(async move {
-                    // use server url to create database
-                    let mut conn = sqlx::PgConnection::connect(&server_url).await.unwrap();
-                    conn.execute(format!(r#"CREATE DATABASE {}"#, dbname).as_str())
-                        .await
-                        .unwrap();
-                    // now connect to test database for migration
-                    let mut conn = sqlx::PgConnection::connect(&url).await.unwrap();
-                    sqlx::migrate!("../migrations")
-                        .run(&mut conn)
-                        .await
-                        .unwrap();
-                });
-            }).join().expect("fail to create database");
-
-
-            Self {
-                config: Arc::new(config),
-            }
-        }
-    }
-
-    impl Drop for TestConfig {
-        fn drop(&mut self) {
-            let server_url = self.config.db.server_url();
-            let dbname = self.config.db.dbname.clone();
-            thread::spawn(move || {
-                TEST_RT.block_on(async move {
-                    let mut conn = sqlx::PgConnection::connect(&server_url).await.unwrap();
-                    sqlx::query(format!(r#"SELECT pg_terminate_backed(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{}'"#, dbname).as_str())
-                        .execute(&mut conn)
-                        .await      
-                        .expect("Terminate all other connections");
-                    
-                    conn
-                        .execute(format!(r#"DROP DATABASE "{}""#, dbname).as_str())
-                        .await
-                        .expect("Error while querying the drop database statement");
-                });                
-            }).join().expect("fail to drop database");
+            config.db.dbname = tdb.dbname.clone();
+            Self { config, tdb }
         }
     }
 
     #[tokio::test]
     async fn rpc_reserve_should_work() {
-        // let config = Config::load("../service/fixtures/config.yml").unwrap();
         let config = TestConfig::new();
+
         let service = RsvpService::from_config(&config).await.unwrap();
         let reservation = Reservation::new_pending(
             "tyr",
             "ixia-3230",
-            "2020-12-26T15:00:00-0700".parse().unwrap(),
-            "2020-12-30T12:00:00-0700".parse().unwrap(),
+            "2022-12-26T15:00:00-0700".parse().unwrap(),
+            "2022-12-30T12:00:00-0700".parse().unwrap(),
             "test device reservation",
         );
         let request = tonic::Request::new(ReserveRequest {

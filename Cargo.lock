@@ -1704,13 +1704,13 @@ dependencies = [
  "abi",
  "anyhow",
  "futures",
- "lazy_static",
  "rand",
  "reservation",
  "serde",
  "serde_yaml",
  "shellexpand",
  "sqlx 0.7.1",
+ "sqlx_db_test",
  "tokio",
  "tonic",
 ]
@@ -2135,6 +2135,8 @@ dependencies = [
  "smallvec",
  "sqlformat",
  "thiserror",
+ "tokio",
+ "tokio-stream",
  "tracing",
  "url",
  "uuid",
@@ -2220,6 +2222,7 @@ dependencies = [
  "sqlx-sqlite",
  "syn 1.0.109",
  "tempfile",
+ "tokio",
  "url",
 ]
 
@@ -2340,6 +2343,15 @@ dependencies = [
  "sqlx-core 0.7.1",
  "tracing",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "sqlx_db_test"
+version = "0.1.0"
+dependencies = [
+ "sqlx 0.7.1",
+ "tokio",
  "uuid",
 ]
 

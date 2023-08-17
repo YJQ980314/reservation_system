@@ -56,8 +56,8 @@ pub struct UpdateResponse {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConfirmRequest {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "1")]
+    pub id: i64,
 }
 /// Confirmed reservation will be returned in ConfirmResponse
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -70,8 +70,8 @@ pub struct ConfirmResponse {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CancelRequest {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "1")]
+    pub id: i64,
 }
 /// Cancelled reservation will be returned in CancelResponse
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -84,8 +84,8 @@ pub struct CancelResponse {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetRequest {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "1")]
+    pub id: i64,
 }
 /// Resrvation will be returned in GetResponse
 #[allow(clippy::derive_partial_eq_without_eq)]

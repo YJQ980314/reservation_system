@@ -9,15 +9,15 @@ CREATE TABLE rsvp.reservation_changes (
 -- trigger for add/update/delete a reservation
 CREATE OR REPLACE FUNCTION rsvp.reservations_trigger() RETURNS TRIGGER AS $$
 BEGIN
-    IF TG_OP = "INSERT" THEN
+    IF TG_OP = 'INSERT' THEN
         -- update reservation_changes
         INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (NEW.id, 'create');
-    ELSIF TG_OP = "UPDATE" THEN
+    ELSIF TG_OP = 'UPDATE' THEN
         -- if status changed, update reservation_changes
         IF OLD.status <> NEW.status THEN
             INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (NEW.id, 'update');
         END IF;
-    ELSIF TG_OP = "DELETE" THEN
+    ELSIF TG_OP = 'DELETE' THEN
         -- update reservation_changes
         INSERT INTO rsvp.reservation_changes (reservation_id, op) VALUES (OLD.id, 'delete');
     END IF;

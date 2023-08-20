@@ -3,6 +3,7 @@ use tokio::runtime::Runtime;
 use std::{path::Path, thread};
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct TestDb {
     pub host: String,
     pub port: u16,

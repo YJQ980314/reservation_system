@@ -10,10 +10,15 @@ abi = { version = "0.1.0", path = "../abi" }
 # anyhow = "1.0.72"
 async-trait = "0.1.72"
 chrono = { version = "0.4.26", features = ["serde"] }
+futures = { version = "0.3.28", default-features = false }
 sqlx = { version = "0.7.1", features = ["runtime-async-std-rustls", "chrono", "postgres", "uuid"] }
+sqlx-postgres = "0.7.1"
 thiserror = "1.0.44"
-tokio = { version = "1.30.0", features = ["full"] }
+tokio = { version = "1.30.0", features = ["sync", "full"] }
+tracing = "0.1.37"
 
 [dev-dependencies]
 prost-types = "0.11.9"
-sqlx-database-tester = { version = "0.4.2", features = ["runtime-tokio"] }
+sqlx_db_test = { version = "0.1.0", path = "../sqlx_database_test" }
+tokio = { version = "1.30.0", features = ["full"] }
+dotenvy = "0.15.7"

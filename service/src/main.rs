@@ -1,9 +1,7 @@
 use std::path::Path;
-use abi::{Config, reservation_service_server::ReservationServiceServer};
-use anyhow::{Result, Ok};
-use reservation_service::RsvpService;
-use tonic::transport::Server;
-
+use abi::Config;
+use anyhow::Result;
+use reservation_service:: start_server;
 #[tokio::main]
 async fn main() -> Result<()> {
     // we would first try RESERVATION_CONFIG env var, if not found, then try "./reservation.yml", then try "~/.config/reservation.yml", then try "/etc/reservation.yml"
@@ -21,15 +19,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    let config = Config::load(&filename)?;
-    println!("{:?}", config);
-
-    let addr = format!("{}:{}",config.server.host, config.server.port).parse()?;
-
-    let svc = RsvpService::from_config(&config).await?;
-    let svc = ReservationServiceServer::new(svc);
-
-    println!("Listening on {}", addr);
-    Server::builder().add_service(svc).serve(addr).await?;
-    Ok(())
+    let config = Config::load(filename)?;
+    start_server(&config).await
 }

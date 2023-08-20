@@ -7,7 +7,7 @@ use abi::{
 use reservation::Rsvp;
 use tonic::{async_trait, Request, Response, Status};
 
-use crate::{ReservationStream, RsvpService};
+use crate::{ReservationStream, RsvpService, TonicReceiverStream};
 
 #[async_trait]
 impl ReservationService for RsvpService {
@@ -27,50 +27,87 @@ impl ReservationService for RsvpService {
             reservation: Some(reservation),
         }))
     }
+
     /// confirm a pending reservation, if reservation is not pending, do nothing
     async fn confirm(
         &self,
-        _request: Request<ConfirmRequest>,
+        request: Request<ConfirmRequest>,
     ) -> std::result::Result<Response<ConfirmResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.change_status(request.id).await?;
+        Ok(Response::new(ConfirmResponse{
+            reservation: Some(reservation),
+        }))
     }
+
     /// update the reservation note
     async fn update(
         &self,
-        _request: Request<UpdateRequest>,
+        request: Request<UpdateRequest>,
     ) -> std::result::Result<Response<UpdateResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.update_note(request.id, request.note).await?;
+        Ok(Response::new(UpdateResponse{
+            reservation: Some(reservation),
+        }))
     }
+
     /// cancel a reservation
     async fn cancel(
         &self,
-        _request: Request<CancelRequest>,
+        request: Request<CancelRequest>,
     ) -> std::result::Result<Response<CancelResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.delete(request.id).await?;
+        Ok(Response::new(CancelResponse{
+            reservation: Some(reservation),
+        }))
     }
+
     /// Server streaming response type for the query method.
     type queryStream = ReservationStream;
     /// get a reservation by id
     async fn get(
         &self,
-        _request: Request<GetRequest>,
+        request: Request<GetRequest>,
     ) -> std::result::Result<Response<GetResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.get(request.id).await?;
+        Ok(Response::new(GetResponse{
+            reservation: Some(reservation),
+        }))
     }
+
     /// query reservations by resource id, user id, status, start and end time
     async fn query(
         &self,
-        _request: Request<QueryRequest>,
-    ) -> std::result::Result<Response<Self::queryStream>, Status> {
-        todo!()
+        request: Request<QueryRequest>,
+    ) -> Result<Response<Self::queryStream>, Status> {
+        let request = request.into_inner();
+        if request.query.is_none() {
+            return Err(Status::invalid_argument("missing filter params"));
+        }
+        let rsvps = self.manager.query(request.query.unwrap()).await;
+        let stream = TonicReceiverStream::new(rsvps);
+        Ok(Response::new(Box::pin(stream)))
     }
+
     /// filter reservations order by reservation id
     async fn filter(
         &self,
-        _request: Request<FilterRequest>,
-    ) -> std::result::Result<Response<FilterResponse>, Status> {
-        todo!()
+        request: Request<FilterRequest>,
+    ) -> Result<Response<FilterResponse>, Status> {
+        let request = request.into_inner();
+        if request.filter.is_none() {
+            return Err(Status::invalid_argument("missing filter params"));
+        }
+        let (pager, reservations) = self.manager.filter(request.filter.unwrap()).await?;
+        Ok(Response::new(FilterResponse{
+            pager: Some(pager),
+            reservations,
+        }))
     }
+
     /// Server streaming response type for the listen method.
     type listenStream = ReservationStream;
     /// another system could monitor newly added/confirmed/cancelled reservations
@@ -85,44 +122,10 @@ impl ReservationService for RsvpService {
 #[cfg(test)]
 
 mod tests {
-    // use std::path::Path;
-
-    use std::ops::Deref;
     use super::*;
-    use abi::{Config, Reservation};
+    use abi::Reservation;
     // use sqlx::migrate::Migrator;
-    use sqlx_db_test::TestDb;
-
-    struct TestConfig {
-        pub config: Config,
-        #[allow(dead_code)]
-        tdb: TestDb,
-    }
-
-    impl Deref for TestConfig {
-        type Target = Config;
-
-        fn deref(&self) -> &Self::Target {
-            &self.config
-        }
-    }
-
-    impl TestConfig {
-        pub fn new() -> Self {
-            let mut config = Config::load("fixtures/config.yml").unwrap();
-            
-            let tdb = TestDb::new(
-                &config.db.host,
-                config.db.port,
-                &config.db.user,
-                &config.db.password,
-                "../migrations",
-            );
-
-            config.db.dbname = tdb.dbname.clone();
-            Self { config, tdb }
-        }
-    }
+    use crate::test_utils::TestConfig;
 
     #[tokio::test]
     async fn rpc_reserve_should_work() {

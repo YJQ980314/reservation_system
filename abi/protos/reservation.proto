@@ -31,8 +31,9 @@ message Reservation {
 
     // resource id for the reservation
     string resource_id = 4;
-    // start and end time for the reservation
+    // start time for the reservation
     google.protobuf.Timestamp start = 5;
+    // end time for the reservation
     google.protobuf.Timestamp end = 6;
 
     // extra note
@@ -51,6 +52,7 @@ message ReserveResponse {
 
 // To update a reservation, Send an UpdateRequest. Only note is updatable
 message UpdateRequest {
+    int64 id = 1;
     string note = 2;
 }
 
@@ -109,12 +111,8 @@ message ReservationQuery {
     google.protobuf.Timestamp start = 4;
     // end time for the reservation query, if 0, use Infinity for end time
     google.protobuf.Timestamp end = 5;
-    // current page for the query
-    int32 page = 6;
-    // page size for the query
-    int32 page_size = 7;
     // sort direction
-    bool desc = 8;
+    bool desc = 6;
 }
 
 // To query reservations order by reservation id
@@ -126,9 +124,9 @@ message ReservationFilter {
     // use status to filter result. if UNKNOWN, then return all reservations
     ReservationStatus status = 3;
     // cursor
-    int64 cursor = 4;
+    optional int64 cursor = 4;
     // page size for the query
-    int32 page_size = 5;
+    int64 page_size = 5;
     // sort direction
     bool desc = 6;
 }
@@ -136,14 +134,14 @@ message ReservationFilter {
 // to query reservations, send a QueryRequest
 message FilterRequest {
     ReservationFilter filter = 1;
-    FilterPager pager = 2;
+    // FilterPager pager = 2;
 }
 
 // filter pager info
 message FilterPager {
-    int64 prev = 1;
-    int64 next = 2;
-    int32 total = 3;
+    optional int64 prev = 1;
+    optional int64 next = 2;
+    optional int64 total = 3;
 }
 
 message FilterResponse {

@@ -26,12 +26,12 @@ fn main() {
 
     tonic_build::configure()
         .out_dir("src/pb")
-        .with_sql_type(&["reservation.ReservationStatus"])
-        .with_builder(&[
+        .with_sqlx_type(&["reservation.ReservationStatus"])
+        .with_derive_builder(&[
             "reservation.ReservationQuery",
             "reservation.ReservationFilter",
         ])
-        .with_builder_into(
+        .with_derive_builder_into(
             "reservation.ReservationQuery",
             &[
                 "resource_id",
@@ -42,18 +42,23 @@ fn main() {
                 "desc",
             ],
         )
-        .with_builder_into(
+        .with_derive_builder_into(
             "reservation.ReservationFilter",
-            &[
-                "resource_id",
-                "user_id",
-                "status",
-                "cursor",
-                "page_size",
-                "desc",
-            ],
+            &["resource_id", "user_id", "status", "desc"],
         )
-        .with_builder_option("reservation.ReservationQuery", &["start", "end"])
+        .with_derive_builder_option("reservation.ReservationFilter", &["cursor"])
+        .with_derive_builder_option("reservation.ReservationQuery", &["start", "end"])
+        .with_type_attributes(
+            &[
+                "reservation.ReservationFilter",
+                "reservation.ReservationQuery",
+            ],
+            &[r#"#[builder(build_fn(name = "private_build"))]"#],
+        )
+        .with_field_attributes(
+            &["page_size"],
+            &["#[builder(setter(into), default = \"10\")]"],
+        )
         .compile(&["protos/reservation.proto"], &["protos"])
         .unwrap();
 
@@ -66,37 +71,56 @@ fn main() {
 }
 
 trait BuildExt {
-    fn with_sql_type(self, paths: &[&str]) -> Self;
-    fn with_builder(self, paths: &[&str]) -> Self;
-    fn with_builder_into(self, path: &str, fields: &[&str]) -> Self;
-    fn with_builder_option(self, path: &str, fields: &[&str]) -> Self;
+    fn with_sqlx_type(self, paths: &[&str]) -> Self;
+    fn with_derive_builder(self, paths: &[&str]) -> Self;
+    fn with_derive_builder_into(self, path: &str, fields: &[&str]) -> Self;
+    fn with_derive_builder_option(self, path: &str, fields: &[&str]) -> Self;
+    fn with_field_attributes(self, paths: &[&str], attributes: &[&str]) -> Self;
+    fn with_type_attributes(self, paths: &[&str], attributes: &[&str]) -> Self;
 }
 
 impl BuildExt for Builder {
-    fn with_sql_type(self, paths: &[&str]) -> Self {
+    fn with_sqlx_type(self, paths: &[&str]) -> Self {
         paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(sqlx::Type)]")
         })
     }
 
-    fn with_builder(self, paths: &[&str]) -> Self {
+    fn with_derive_builder(self, paths: &[&str]) -> Self {
         paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(derive_builder::Builder)]")
         })
     }
 
-    fn with_builder_into(self, path: &str, fields: &[&str]) -> Self {
-        fields.iter().fold(self, |acc, field| {
-            acc.field_attribute(format!("{}.{}", path, field), "#[builder(setter(into))]")
-        })
-    }
-
-    fn with_builder_option(self, path: &str, fields: &[&str]) -> Self {
+    fn with_derive_builder_into(self, path: &str, fields: &[&str]) -> Self {
         fields.iter().fold(self, |acc, field| {
             acc.field_attribute(
                 format!("{}.{}", path, field),
-                "#[builder(setter(into, strip_option))]",
+                "#[builder(setter(into), default)]",
             )
+        })
+    }
+
+    fn with_derive_builder_option(self, path: &str, fields: &[&str]) -> Self {
+        fields.iter().fold(self, |acc, field| {
+            acc.field_attribute(
+                format!("{}.{}", path, field),
+                "#[builder(setter(into, strip_option), default)]",
+            )
+        })
+    }
+    fn with_field_attributes(self, paths: &[&str], attributes: &[&str]) -> Self {
+        let attr = attributes.join("\n");
+        paths.iter().fold(self, |builder, ty| {
+            builder.field_attribute(ty, attr.as_str())
+        })
+    }
+
+    fn with_type_attributes(self, paths: &[&str], attributes: &[&str]) -> Self {
+        let attr = attributes.join("\n");
+
+        paths.iter().fold(self, |builder, ty| {
+            builder.type_attribute(ty, attr.as_str())
         })
     }
 }

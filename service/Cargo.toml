@@ -5,6 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# default = []
+test_utils = []
+
+# [profile.test]
+# default = ["test_utils"]
+
 [dependencies]
 abi = { version = "0.1.0", path = "../abi" }
 anyhow = "1.0.72"
@@ -16,9 +23,10 @@ shellexpand = "3.1.0"
 tokio = { version = "1.31.0", features = ["full"] }
 tonic = { version = "0.9.2", features = ["gzip"] }
 sqlx = { version = "0.7.1", features = ["chrono", "postgres", "uuid"] }
-sqlx_db_test = { path = "../sqlx_database_test" }
+tracing = "0.1.37"
 
 [dev-dependencies]
 rand = "0.8.5"
 sqlx = { version = "0.7.1", features = ["chrono", "postgres", "uuid"] }
-# sqlx_db_test = { path = "../sqlx_database_test" }
+sqlx_db_test = { path = "../sqlx_database_test" }
+lazy_static = "1.4.0"
